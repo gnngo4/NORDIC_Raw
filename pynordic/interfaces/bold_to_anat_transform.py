@@ -1,3 +1,5 @@
+import pathlib
+
 from nipype.interfaces.base import (
     File, 
     InputMultiObject,
@@ -5,8 +7,6 @@ from nipype.interfaces.base import (
     TraitedSpec, 
     traits
 )
-
-from pathlib import Path
 
 BOLD_TO_T1_BASE = 'space-t1_bold.nii.gz'
 
@@ -67,7 +67,7 @@ def _BoldToT1Transform(bold_path,hmc_mats,bold_to_t1_warp,t1_resampled,repetitio
     merged_nii = nib.funcs.concat_images(vol_t1_bold)
     nib.save(merged_nii,BOLD_TO_T1_BASE)
     # Assertion
-    assert Path(BOLD_TO_T1_BASE).exists(), f"{BOLD_TO_T1_BASE} was not created."
+    assert pathlib.Path(BOLD_TO_T1_BASE).exists(), f"{BOLD_TO_T1_BASE} was not created."
 
 class BoldToT1TransformInputSpec(TraitedSpec):
     bold_path = File(exists=True,desc="bold path",mandatory=True)
@@ -99,6 +99,7 @@ class BoldToT1Transform(SimpleInterface):
         return runtime
 
     def _list_outputs(self):
+        
         outputs = self._outputs().get()
         outputs["t1_bold_path"] = pathlib.Path(BOLD_TO_T1_BASE).resolve()
 
