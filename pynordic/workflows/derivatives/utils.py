@@ -42,11 +42,11 @@ class PipelineManager:
         # processed t1w
         inputs['anat'] = _find_file(self.preproc_dir,f"*sub-{self.sub_id}*desc-preproc_T1w.nii.gz")
         # raw bold
-        inputs['bold_part-mag'] = _find_file(self.bids_dir,f'*sub-{sub_id}_ses-{ses_id}_task-{task_id}*run-{run_id}_part-mag_bold.nii.gz')
-        inputs['bold_part-phase'] = _find_file(self.bids_dir,f'*sub-{sub_id}_ses-{ses_id}_task-{task_id}*run-{run_id}_part-phase_bold.nii.gz')
+        inputs['bold_part-mag'] = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-mag_bold.nii.gz')
+        inputs['bold_part-phase'] = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-phase_bold.nii.gz')
         # processed reg files
-        inputs['bold_hmc_affines'] = _find_file(self.preproc_dir,f'*sub-{sub_id}_ses-{ses_id}_task-{task_id}*run-{run_id}_hmc.mats.tar.gz')
-        inputs['bold_to_anat_warp'] = _find_file(self.preproc_dir,f'*sub-{sub_id}_ses-{ses_id}_task-{task_id}*run-{run_id}_from-slab_to-T1w_warp.nii.gz')
+        inputs['bold_hmc_affines'] = _find_file(self.preproc_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_hmc.mats.tar.gz')
+        inputs['bold_to_anat_warp'] = _find_file(self.preproc_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_from-slab_to-T1w_warp.nii.gz')
 
         for k,v in inputs.items():
             if not Path(v).exists():
@@ -61,24 +61,24 @@ class PipelineManager:
 
         all_outputs_exist = True
 
-        outputs = {'run_flag': True}
         # outputs
-        base = _find_file(self.bids_dir,f'*sub-{sub_id}_ses-{ses_id}_task-{task_id}*run-{run_id}_part-mag_bold.nii.gz')
-        outputs['tsnr_raw'] = Path(f"{self.directory_path}/{str(base.split('/')[-1]).replace('_part-mag_bold.nii.gz','_desc-raw_tSNR.nii.gz')}")
-        outputs['tsnr_nordic'] = Path(f"{self.directory_path}/{str(base.split('/')[-1]).replace('_part-mag_bold.nii.gz','_desc-nordic_tSNR.nii.gz')}")
-        outputs['bold_nordic'] = Path(f"{self.directory_path}/{str(base.split('/')[-1]).replace('_part-mag_bold.nii.gz','_proc-nordic_bold.nii.gz')}")
+        outputs = {}
+        base = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-mag_bold.nii.gz')
+        outputs['tsnr_raw'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_desc-raw_tSNR.nii.gz')}")
+        outputs['tsnr_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_desc-nordic_tSNR.nii.gz')}")
+        outputs['bold_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_proc-nordic_bold.nii.gz')}")
 
         for k,v in outputs.items():
             if not Path(v).exists():
-                outputs['run_flag'] = False
+                all_outputs_exist = False
 
-        return outputs
+        return outputs, all_outputs_exist
 
-    def _find_file(root_path, file_pattern):
-    
-        file_paths  = list(Path(root_path).rglob(file_pattern))
-        if len(file_paths) != 1:
-            raise ValueError(f"Error: {len(file_paths)} paths were found. 1 path is expected.")
-        
-        for file_path in file_paths:
-            return file_path
+def _find_file(root_path, file_pattern):
+
+    file_paths  = list(Path(root_path).rglob(file_pattern))
+    if len(file_paths) != 1:
+        raise ValueError(f"Error: {len(file_paths)} paths were found. 1 path is expected.\nroot_path: {root_path}\nfile_pattern: {file_pattern}")
+
+    for file_path in file_paths:
+        return file_path
