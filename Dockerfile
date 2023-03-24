@@ -66,6 +66,7 @@ RUN apt-get update -y && apt upgrade -y && \
         -name "bet" -or \
         -name "bet2" -or \
         -name "convert_xfm" -or \
+        -name "convertwarp" -or \
         -name "fast" -or \
         -name "flirt" -or \
         -name "fsl_regfilt" -or \
@@ -79,10 +80,8 @@ RUN apt-get update -y && apt upgrade -y && \
         -name "imtest" -or \
         -name "mcflirt" -or \
         -name "melodic" -or \
-        -name "prelude" -or \
         -name "remove_ext" -or \
         -name "susan" -or \
-        -name "topup" -or \
         -name "zeropad" \) -delete \
     && find /opt/fsl-6.0.5.1/data/standard -type f -not -name "MNI152_T1_2mm_brain.nii.gz" -delete
 ENV FSLDIR="/opt/fsl-6.0.5.1" \
@@ -138,7 +137,8 @@ RUN apt-get update -y && apt upgrade -y && \
     pip install pipenv
 
 WORKDIR /opt/pynordic
-COPY ["Pipfile.lock", "Pipfile", "."]
+COPY ["Pipfile.lock", "/opt/pynordic"]
+COPY ["Pipfile", "/opt/pynordic"]
 ADD ["pynordic", "/opt/pynordic/pynordic"]
 RUN ["pipenv", "install", "--deploy", "--system", "--ignore-pipfile"]
 
