@@ -142,4 +142,4 @@ COPY ["Pipfile", "/opt/pynordic"]
 ADD ["pynordic", "/opt/pynordic/pynordic"]
 RUN ["pipenv", "install", "--deploy", "--system", "--ignore-pipfile"]
 
-ENTRYPOINT ["/opt/nordic_compiled/run_nordic_main.sh", "/opt/matlab"]
+ENTRYPOINT ["python3","/opt/pynordic/pynordic/cli/run.py"]

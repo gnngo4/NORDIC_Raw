@@ -19,6 +19,7 @@ sys.path.append('/opt/pynordic')
 from pynordic.workflows.derivatives.utils import PipelineManager
 from pynordic.workflows.bold_reference import init_bold_ref_wf
 from pynordic.workflows.apply_registrations import init_apply_bold_to_anat_wf
+from pynordic.workflows.derivatives.outputs import init_nordic_derivatives_wf
 from pynordic.interfaces.nordic import Nordic
 
 def main(
@@ -139,6 +140,12 @@ def main(
         name='raw_tsnr'
     )
 
+    nordic_derivatives_wf = init_nordic_derivatives_wf(
+        out_dir,
+        outputs,
+        name='nordic_derivatives_wf'
+    )
+
     workflow.connect([
         (inputnode,bold_ref,[('mag_image','inputnode.bold')]),
         (bold_ref,resample_reference,[('outputnode.boldref','moving_image')]),
@@ -162,7 +169,10 @@ def main(
         (bold_ref,nordic_bold_to_anat_wf,[('outputnode.boldref','inputnode.bold_ref')]),
         (resample_reference,nordic_bold_to_anat_wf,[('out_file','inputnode.t1_resampled')]),
         (inputnode,nordic_bold_to_anat_wf,[('bold_to_anat_warp','inputnode.bold_to_t1_warp')]),
-        (inputnode,nordic_bold_to_anat_wf,[(('hmc_affines_tar',_untar),'inputnode.fsl_hmc_affines')]),    
+        (inputnode,nordic_bold_to_anat_wf,[(('hmc_affines_tar',_untar),'inputnode.fsl_hmc_affines')]),
+        (raw_tsnr,nordic_derivatives_wf,[('tsnr_file','inputnode.tsnr_raw')]),
+        (nordic_tsnr,nordic_derivatives_wf,[('tsnr_file','inputnode.tsnr_nordic')]),
+        (nordic_bold_to_anat_wf,nordic_derivatives_wf,[('outputnode.t1_space_bold','inputnode.bold_nordic')]),
     ])
 
     workflow.run()

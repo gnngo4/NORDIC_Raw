@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Dict
 
 def init_nordic_derivatives_wf(
     output_dir: Path,

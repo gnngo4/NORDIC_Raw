@@ -66,7 +66,7 @@ class PipelineManager:
         base = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-mag_bold.nii.gz')
         outputs['tsnr_raw'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_desc-raw_tSNR.nii.gz')}")
         outputs['tsnr_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_desc-nordic_tSNR.nii.gz')}")
-        outputs['bold_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_proc-nordic_bold.nii.gz')}")
+        outputs['bold_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_space-T1w_proc-nordic_desc-preproc_bold.nii.gz')}")
 
         for k,v in outputs.items():
             if not Path(v).exists():
