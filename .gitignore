@@ -4,7 +4,8 @@
 *json
 *pklz
 *js
-notebooks/test_nordic
+*simg
+notebooks/nordic_example
 
 sample_cmds.txt
 matlab/nordic_compiled
