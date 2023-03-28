@@ -1,4 +1,6 @@
-import sys
+import certifi, sys, os
+os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(os.path.dirname(sys.argv[0]),certifi.where())
+
 import typer
 from typing import Optional
 
