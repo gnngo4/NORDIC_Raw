@@ -44,6 +44,8 @@ class PipelineManager:
         # raw bold
         inputs['bold_part-mag'] = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-mag_bold.nii.gz')
         inputs['bold_part-phase'] = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-phase_bold.nii.gz')
+	# reference
+        inputs['bold_reference'] = _find_file(self.preproc_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_space-T1w_boldref.nii.gz')
         # processed reg files
         inputs['bold_hmc_affines'] = _find_file(self.preproc_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_hmc.mats.tar.gz')
         inputs['bold_to_anat_warp'] = _find_file(self.preproc_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_from-slab_to-T1w_warp.nii.gz')

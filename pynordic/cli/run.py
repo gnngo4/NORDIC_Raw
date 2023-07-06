@@ -51,7 +51,7 @@ def main(
     inputs = manager.get_inputs()
     outputs, output_flag = manager.get_outputs()
     # Check if all inputs exist.
-    if len(inputs) != 5:
+    if len(inputs) != 6:
         print(f"Some inputs are missing.\nExiting the program.")
         sys.exit()
     # Check if NORDIC denoising has already been ran.
@@ -78,6 +78,7 @@ def main(
                 'anat_image',
                 'mag_image',
                 'phase_image',
+                'reference_image',
                 'out_image',
                 'n_threads',
                 'hmc_affines_tar',
@@ -89,6 +90,7 @@ def main(
     inputnode.inputs.anat_image = str(inputs['anat'])
     inputnode.inputs.mag_image = str(inputs['bold_part-mag'])
     inputnode.inputs.phase_image = str(inputs['bold_part-phase'])
+    inputnode.inputs.reference_image = str(inputs['bold_reference'])
     inputnode.inputs.hmc_affines_tar = str(inputs['bold_hmc_affines'])
     inputnode.inputs.bold_to_anat_warp = str(inputs['bold_to_anat_warp'])
     inputnode.inputs.n_threads = n_threads
@@ -103,11 +105,6 @@ def main(
     bold_ref = init_bold_ref_wf(
         str(inputs['bold_part-mag']),
         name='bold_reference_wf'
-    )
-
-    resample_reference = pe.Node(
-        GenerateSamplingReference(),
-        name='anat_resample'
     )
 
     nordic_proc = pe.Node(
@@ -150,8 +147,6 @@ def main(
 
     workflow.connect([
         (inputnode,bold_ref,[('mag_image','inputnode.bold')]),
-        (bold_ref,resample_reference,[('outputnode.boldref','moving_image')]),
-        (inputnode,resample_reference,[('anat_image','fixed_image')]),
         (inputnode,nordic_proc,[
             ('mag_image','mag_image'),
             ('phase_image','phase_image'),
@@ -169,9 +164,11 @@ def main(
         (nordic_gzip,nordic_stc_wf,[('out_file','inputnode.bold_file')]),
         (nordic_stc_wf, nordic_bold_to_anat_wf,[('outputnode.stc_file','inputnode.bold_file')]),
         (bold_ref,nordic_bold_to_anat_wf,[('outputnode.boldref','inputnode.bold_ref')]),
-        (resample_reference,nordic_bold_to_anat_wf,[('out_file','inputnode.t1_resampled')]),
-        (inputnode,nordic_bold_to_anat_wf,[('bold_to_anat_warp','inputnode.bold_to_t1_warp')]),
-        (inputnode,nordic_bold_to_anat_wf,[(('hmc_affines_tar',_untar),'inputnode.fsl_hmc_affines')]),
+        (inputnode,nordic_bold_to_anat_wf,[
+		('reference_image', 'inputnode.t1_resampled'),
+		('bold_to_anat_warp', 'inputnode.bold_to_t1_warp'),
+		(('hmc_affines_tar', _untar), 'inputnode.fsl_hmc_affines'),
+	]),
         (raw_tsnr,nordic_derivatives_wf,[('tsnr_file','inputnode.tsnr_raw')]),
         (nordic_tsnr,nordic_derivatives_wf,[('tsnr_file','inputnode.tsnr_nordic')]),
         (nordic_bold_to_anat_wf,nordic_derivatives_wf,[('outputnode.t1_space_bold','inputnode.bold_nordic')]),
