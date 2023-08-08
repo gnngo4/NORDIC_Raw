@@ -18,7 +18,8 @@ class PipelineManager:
         sub_id: str,
         ses_id: str,
         task_id: str,
-        run_id: str
+        run_id: str,
+        vaso_flag: bool = False,
         ):
 
         self.bids_dir = bids_dir
@@ -28,6 +29,7 @@ class PipelineManager:
         self.ses_id = ses_id
         self.task_id = task_id
         self.run_id = run_id
+        self.vaso_flag = vaso_flag
         self.directory_path = Path(f"{self.out_dir}/sub-{self.sub_id}/ses-{self.ses_id}/func")
 
     def create_output_directory_tree(self) -> None:
@@ -42,10 +44,14 @@ class PipelineManager:
         # processed t1w
         inputs['anat'] = _find_file(self.preproc_dir,f"*sub-{self.sub_id}*desc-preproc_T1w.nii.gz")
         # raw bold
-        inputs['bold_part-mag'] = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-mag_bold.nii.gz')
-        inputs['bold_part-phase'] = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-phase_bold.nii.gz')
-	# reference
         inputs['bold_reference'] = _find_file(self.preproc_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_space-T1w_boldref.nii.gz')
+        if self.vaso_flag:
+            inputs['bold_part-mag'] = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-mag_vaso.1.nii.gz')
+            inputs['bold_part-phase'] = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-phase_vaso.1.nii.gz')
+
+        else:
+            inputs['bold_part-mag'] = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-mag_bold.nii.gz')
+            inputs['bold_part-phase'] = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-phase_bold.nii.gz')
         # processed reg files
         inputs['bold_hmc_affines'] = _find_file(self.preproc_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_hmc.mats.tar.gz')
         inputs['bold_to_anat_warp'] = _find_file(self.preproc_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_from-slab_to-T1w_warp.nii.gz')
@@ -65,10 +71,16 @@ class PipelineManager:
 
         # outputs
         outputs = {}
-        base = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-mag_bold.nii.gz')
-        outputs['tsnr_raw'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_desc-raw_tSNR.nii.gz')}")
-        outputs['tsnr_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_desc-nordic_tSNR.nii.gz')}")
-        outputs['bold_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_space-T1w_proc-nordic_desc-preproc_bold.nii.gz')}")
+        if self.vaso_flag:
+            base = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-mag_vaso.1.nii.gz')
+            outputs['tsnr_raw'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_vaso.1.nii.gz','_desc-rawvaso_tSNR.nii.gz')}")
+            outputs['tsnr_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_vaso.1.nii.gz','_desc-nordicvaso_tSNR.nii.gz')}")
+            outputs['bold_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_vaso.1.nii.gz','_space-T1w_proc-nordic_desc-preproc_vaso.nii.gz')}")
+        else:
+            base = _find_file(self.bids_dir,f'*sub-{self.sub_id}_ses-{self.ses_id}_task-{self.task_id}*run-{self.run_id}_part-mag_bold.nii.gz')
+            outputs['tsnr_raw'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_desc-raw_tSNR.nii.gz')}")
+            outputs['tsnr_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_desc-nordic_tSNR.nii.gz')}")
+            outputs['bold_nordic'] = Path(f"{self.directory_path}/{str(base).split('/')[-1].replace('_part-mag_bold.nii.gz','_space-T1w_proc-nordic_desc-preproc_bold.nii.gz')}")
 
         for k,v in outputs.items():
             if not Path(v).exists():
