@@ -3,6 +3,7 @@ os.environ['REQUESTS_CA_BUNDLE'] = os.path.join(os.path.dirname(sys.argv[0]),cer
 
 import typer
 from typing import Optional
+from typing_extensions import Annotated
 
 from pathlib import Path
 
@@ -34,6 +35,8 @@ def main(
     run_id: str,
     nordic_patch_size_estimator: str,
     n_threads: int,
+    stc: Annotated[bool, typer.Option("--stc")] = False,
+    vaso: Annotated[bool, typer.Option("--vaso")] = False,
     scratch_dir: Optional[Path] = '/tmp'
 ):
 
@@ -45,7 +48,8 @@ def main(
         sub_id,
         ses_id,
         task_id,
-        run_id
+        run_id,
+        vaso_flag = vaso,
     )
     manager.create_output_directory_tree()
     inputs = manager.get_inputs()
@@ -61,7 +65,7 @@ def main(
     # Get metadata for the bold nifti
     layout = BIDSLayout(bids_dir)
     metadata = layout.get_metadata(inputs['bold_part-mag'])
-    if not bool(metadata["SliceTiming"]):
+    if stc and bool(metadata["SliceTiming"]):
         raise ValueError("SliceTiming metadata is unavailable.")
 
     """
@@ -117,12 +121,6 @@ def main(
         name='nordic_gzip'
     )
 
-    nordic_stc_wf = init_bold_stc_wf(
-        metadata=metadata,
-        name='stc_wf'
-    )
-    nordic_stc_wf.inputs.inputnode.skip_vols = 0
-
     nordic_bold_to_anat_wf = init_apply_bold_to_anat_wf(
         slab_bold_quick=False,
         name=f"nordic_trans_bold_to_anat_wf"
@@ -144,7 +142,8 @@ def main(
         outputs,
         name='nordic_derivatives_wf'
     )
-
+    
+    # fmt: off
     workflow.connect([
         (inputnode,bold_ref,[('mag_image','inputnode.bold')]),
         (inputnode,nordic_proc,[
@@ -161,8 +160,6 @@ def main(
         (nordic_proc,nordic_gzip,[('out_image','in_file')]),
         (nordic_gzip,nordic_tsnr,[('out_file','in_file')]),
         (inputnode,raw_tsnr,[('mag_image','in_file')]),
-        (nordic_gzip,nordic_stc_wf,[('out_file','inputnode.bold_file')]),
-        (nordic_stc_wf, nordic_bold_to_anat_wf,[('outputnode.stc_file','inputnode.bold_file')]),
         (bold_ref,nordic_bold_to_anat_wf,[('outputnode.boldref','inputnode.bold_ref')]),
         (inputnode,nordic_bold_to_anat_wf,[
 		('reference_image', 'inputnode.t1_resampled'),
@@ -173,6 +170,26 @@ def main(
         (nordic_tsnr,nordic_derivatives_wf,[('tsnr_file','inputnode.tsnr_nordic')]),
         (nordic_bold_to_anat_wf,nordic_derivatives_wf,[('outputnode.t1_space_bold','inputnode.bold_nordic')]),
     ])
+    # fmt: on
+    
+    if stc:
+        nordic_stc_wf = init_bold_stc_wf(
+            metadata=metadata,
+            name='stc_wf'
+        )
+        nordic_stc_wf.inputs.inputnode.skip_vols = 0
+        # fmt: off
+        workflow.connect([
+            (nordic_gzip,nordic_stc_wf,[('out_file','inputnode.bold_file')]),
+            (nordic_stc_wf, nordic_bold_to_anat_wf,[('outputnode.stc_file','inputnode.bold_file')]),
+        ])
+        # fmt: on
+    else:
+        # fmt: off
+        workflow.connect([
+            (nordic_gzip, nordic_bold_to_anat_wf,[('out_file','inputnode.bold_file')]),
+        ])
+        # fmt: on
 
     workflow.run()
 
