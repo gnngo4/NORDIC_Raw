@@ -37,6 +37,7 @@ def main(
     n_threads: int,
     stc: Annotated[bool, typer.Option("--stc")] = False,
     vaso: Annotated[bool, typer.Option("--vaso")] = False,
+    nordic: Annotated[bool, typer.Option("--nordic")] = False,
     scratch_dir: Optional[Path] = '/tmp'
 ):
 
@@ -64,7 +65,15 @@ def main(
         sys.exit()
     # Get metadata for the bold nifti
     layout = BIDSLayout(bids_dir)
-    metadata = layout.get_metadata(inputs['bold_part-mag'])
+
+    if not vaso:
+        # Use BOLD metadata
+        metadata = layout.get_metadata(inputs['bold_part-mag'])
+    else:
+        # Use BOLD metadata if a vaso nifti is detected
+        _input = str(inputs['bold_part-mag']).replace("vaso.1", "bold")
+        metadata = layout.get_metadata(_input)
+
     if stc and bool(metadata["SliceTiming"]):
         raise ValueError("SliceTiming metadata is unavailable.")
 
@@ -98,6 +107,13 @@ def main(
     inputnode.inputs.hmc_affines_tar = str(inputs['bold_hmc_affines'])
     inputnode.inputs.bold_to_anat_warp = str(inputs['bold_to_anat_warp'])
     inputnode.inputs.n_threads = n_threads
+
+    bold_buffer = pe.Node(
+        niu.IdentityInterface(
+            ["bold"]
+        ),
+        name='bold_buffer'
+    )
 
     nordic_patch_size_buffer = pe.Node(
         niu.IdentityInterface(
@@ -142,35 +158,52 @@ def main(
         outputs,
         name='nordic_derivatives_wf'
     )
-    
-    # fmt: off
-    workflow.connect([
-        (inputnode,bold_ref,[('mag_image','inputnode.bold')]),
-        (inputnode,nordic_proc,[
-            ('mag_image','mag_image'),
-            ('phase_image','phase_image'),
-            ('n_threads','n_threads'),
-        ]),
-        (inputnode,nordic_patch_size_buffer,[(('mag_image',_estimate_patch_size,nordic_patch_size_estimator),'patch_size')]),
-        (nordic_patch_size_buffer,nordic_proc,[
-            (('patch_size',_index_list,0),'patch_x_dim'),
-            (('patch_size',_index_list,1),'patch_y_dim'),
-            (('patch_size',_index_list,2),'patch_z_dim'),
-        ]),
-        (nordic_proc,nordic_gzip,[('out_image','in_file')]),
-        (nordic_gzip,nordic_tsnr,[('out_file','in_file')]),
-        (inputnode,raw_tsnr,[('mag_image','in_file')]),
-        (bold_ref,nordic_bold_to_anat_wf,[('outputnode.boldref','inputnode.bold_ref')]),
-        (inputnode,nordic_bold_to_anat_wf,[
-		('reference_image', 'inputnode.t1_resampled'),
-		('bold_to_anat_warp', 'inputnode.bold_to_t1_warp'),
-		(('hmc_affines_tar', _untar), 'inputnode.fsl_hmc_affines'),
-	]),
-        (raw_tsnr,nordic_derivatives_wf,[('tsnr_file','inputnode.tsnr_raw')]),
-        (nordic_tsnr,nordic_derivatives_wf,[('tsnr_file','inputnode.tsnr_nordic')]),
-        (nordic_bold_to_anat_wf,nordic_derivatives_wf,[('outputnode.t1_space_bold','inputnode.bold_nordic')]),
-    ])
-    # fmt: on
+
+    if nordic:
+        # fmt: off
+        workflow.connect([
+            (inputnode,bold_ref,[('mag_image','inputnode.bold')]),
+            (inputnode,nordic_proc,[
+                ('mag_image','mag_image'),
+                ('phase_image','phase_image'),
+                ('n_threads','n_threads'),
+            ]),
+            (inputnode,nordic_patch_size_buffer,[(('mag_image',_estimate_patch_size,nordic_patch_size_estimator),'patch_size')]),
+            (nordic_patch_size_buffer,nordic_proc,[
+                (('patch_size',_index_list,0),'patch_x_dim'),
+                (('patch_size',_index_list,1),'patch_y_dim'),
+                (('patch_size',_index_list,2),'patch_z_dim'),
+            ]),
+            (nordic_proc,nordic_gzip,[('out_image','in_file')]),
+            (nordic_gzip,bold_buffer, [('out_file', 'bold')]),
+            (nordic_gzip,nordic_tsnr,[('out_file','in_file')]),
+            (inputnode,raw_tsnr,[('mag_image','in_file')]),
+            (bold_ref,nordic_bold_to_anat_wf,[('outputnode.boldref','inputnode.bold_ref')]),
+            (inputnode,nordic_bold_to_anat_wf,[
+                ('reference_image', 'inputnode.t1_resampled'),
+                ('bold_to_anat_warp', 'inputnode.bold_to_t1_warp'),
+                (('hmc_affines_tar', _untar), 'inputnode.fsl_hmc_affines'),
+            ]),
+            (raw_tsnr,nordic_derivatives_wf,[('tsnr_file','inputnode.tsnr_raw')]),
+            (nordic_tsnr,nordic_derivatives_wf,[('tsnr_file','inputnode.tsnr_nordic')]),
+            (nordic_bold_to_anat_wf,nordic_derivatives_wf,[('outputnode.t1_space_bold','inputnode.bold_nordic')]),
+        ])
+        # fmt: on
+    else:
+        # fmt: off
+        workflow.connect([
+            (inputnode,bold_ref,[('mag_image','inputnode.bold')]),
+            (inputnode,bold_buffer,[('mag_image','bold')]),
+            (bold_ref,nordic_bold_to_anat_wf,[('outputnode.boldref','inputnode.bold_ref')]),
+            (inputnode,nordic_bold_to_anat_wf,[
+                ('reference_image', 'inputnode.t1_resampled'),
+                ('bold_to_anat_warp', 'inputnode.bold_to_t1_warp'),
+                (('hmc_affines_tar', _untar), 'inputnode.fsl_hmc_affines'),
+            ]),
+            (nordic_bold_to_anat_wf,nordic_derivatives_wf,[('outputnode.t1_space_bold','inputnode.bold_nordic')]),
+        ])
+        # fmt: on
+
     
     if stc:
         nordic_stc_wf = init_bold_stc_wf(
@@ -180,14 +213,14 @@ def main(
         nordic_stc_wf.inputs.inputnode.skip_vols = 0
         # fmt: off
         workflow.connect([
-            (nordic_gzip,nordic_stc_wf,[('out_file','inputnode.bold_file')]),
+            (bold_buffer,nordic_stc_wf,[('bold','inputnode.bold_file')]),
             (nordic_stc_wf, nordic_bold_to_anat_wf,[('outputnode.stc_file','inputnode.bold_file')]),
         ])
         # fmt: on
     else:
         # fmt: off
         workflow.connect([
-            (nordic_gzip, nordic_bold_to_anat_wf,[('out_file','inputnode.bold_file')]),
+            (bold_buffer, nordic_bold_to_anat_wf,[('bold','inputnode.bold_file')]),
         ])
         # fmt: on
 
